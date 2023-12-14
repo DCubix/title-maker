@@ -1,0 +1,180 @@
+text {
+	color: #ffffff;
+	text-align: left;
+	vertical-align: top;
+	font-size: 14;
+}
+
+text_middle {
+	@text;
+	vertical-align: middle;
+}
+
+menu_item {
+	color: #ffffff;
+	font-size: 14;
+	text-align: left;
+	vertical-align: middle;
+	padding: 6 6 0 0;
+	background: rgba(0, 0, 0, 0);
+}
+
+menu_item_hover {
+	@menu_item;
+	background: rgba(191, 62, 19, 0.9);
+}
+
+menu_item_active {
+	@menu_item;
+	background: rgba(0, 0, 0, 0.7);
+}
+
+menu_item_disabled {
+	@menu_item;
+	background: rgba(50, 50, 50, 0.4);
+}
+
+button {
+	color: #ffffff;
+	border-radius: 4;
+	text-align: center;
+	vertical-align: middle;
+	font-size: 14;
+	background: rgba(0, 0, 0, 0.5);
+}
+
+button_hover {
+	@button;
+	background: rgba(191, 62, 19, 0.9);
+}
+
+button_empty {
+	@button;
+	background: rgba(0, 0, 0, 0.0);
+}
+
+button_active {
+	@button;
+	background: rgba(0, 0, 0, 0.7);
+}
+
+button_disabled {
+	@button;
+	background: rgba(50, 50, 50, 0.4);
+}
+
+panel {
+	color: #ffffff;
+	border-radius: 4;
+	background: rgba(0, 0, 0, 0.6);
+}
+
+panel_hollow {
+	color: #ffffff;
+	border-radius: 4;
+	background: rgba(0, 0, 0, 0);
+	border-radius: 4;
+	border-width: 2;
+	border-color: rgba(0, 0, 0, 0.6);
+	padding: 6 6 6 6;
+}
+
+debug {
+	border-width: 1;
+	border-color: rgba(0, 255, 0, 1);
+}
+
+debug2 {
+	border-width: 1;
+	border-color: rgba(255, 0, 0, 1);
+}
+
+scroll_track {
+	background: rgba(0, 0, 0, 0.3);
+	border-radius: 9;
+}
+
+scroll_thumb {
+	background: rgba(0, 0, 0, 0.5);
+	border-radius: 9;
+}
+
+scroll_thumb_hover {
+	@scroll_thumb;
+	background: rgba(191, 62, 19, 0.9);
+}
+
+scroll_thumb_active {
+	@scroll_thumb;
+	background: rgba(0, 0, 0, 0.7);
+}
+
+textedit {
+	color: #ffffff;
+	font-size: 14;
+	border-radius: 4;
+	padding: 6 6 0 0;
+	background: rgba(0, 0, 0, 0.5);
+}
+
+textedit_focus {
+	@textedit;
+	border-width: 2;
+	border-color: rgba(191, 62, 19, 1);
+}
+
+placeholder {
+	font-size: 14;
+	color: rgba(255, 255, 255, 0.5);
+	text-align: left;
+	vertical-align: middle;
+	padding: 6 6 6 6;
+}
+
+icon_button {
+	color: #ffffff;
+	border-radius: 4;
+	text-align: center;
+	vertical-align: middle;
+	font-size: 16;
+	background: rgba(0, 0, 0, 0.5);
+}
+
+icon_button_hover {
+	@icon_button;
+	background: rgba(191, 62, 19, 0.9);
+}
+
+icon_button_active {
+	@icon_button;
+	background: rgba(0, 0, 0, 0.7);
+}
+
+icon_button_disabled {
+	@icon_button;
+	background: rgba(50, 50, 50, 0.4);
+}
+
+tab {
+	color: #ffffff;
+	border-radius: 4 4 0 0;
+	text-align: center;
+	vertical-align: middle;
+	font-size: 14;
+	background: rgba(0, 0, 0, 0.5);
+}
+
+tab_hover {
+	@tab;
+	background: rgba(191, 62, 19, 0.9);
+}
+
+tab_active {
+	@tab;
+	background: rgba(0, 0, 0, 0.7);
+}
+
+tab_disabled {
+	@tab;
+	background: rgba(50, 50, 50, 0.4);
+}

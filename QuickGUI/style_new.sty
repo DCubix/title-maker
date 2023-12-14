@@ -1,0 +1,209 @@
+text {
+	color: #ffffff;
+	text-align: left;
+	vertical-align: top;
+	font-size: 14;
+}
+
+text_middle {
+	@text;
+	vertical-align: middle;
+}
+
+menu_item {
+	color: #ffffff;
+	font-size: 14;
+	text-align: left;
+	vertical-align: middle;
+	padding: 4 6 0 0;
+	background: rgba(0, 0, 0, 0);
+}
+
+menu_item_hover {
+	@menu_item;
+	background: #1c77ed;
+}
+
+menu_item_active {
+	@menu_item;
+	background: #104182;
+}
+
+menu_item_disabled {
+	@menu_item;
+	background: rgba(93, 116, 145, 0.5);
+}
+
+button {
+	color: #ffffff;
+	border-radius: 2;
+	border-width: 1;
+	border-color: #1c1c1c;
+	text-align: center;
+	vertical-align: middle;
+	font-size: 14;
+	background: gradient(
+		0.0, 0.0,
+		0.0, 1.0,
+		#363636, #1c1c1c
+	);
+}
+
+button_hover {
+	@button;
+	background: gradient(
+		0.0, 0.0,
+		0.0, 1.0,
+		#474747, #2e2e2e
+	);
+}
+
+button_empty {
+	@button;
+	background: rgba(0, 0, 0, 0.0);
+}
+
+button_active {
+	@button;
+	background: gradient(
+		0.0, 0.0,
+		0.0, 1.0,
+		#072854, #104182
+	);
+}
+
+button_disabled {
+	@button;
+	background: rgba(50, 50, 50, 0.4);
+}
+
+panel {
+	color: #ffffff;
+	border-radius: 2;
+	border-width: 1;
+	border-color: #1c1c1c;
+	background: #363636;
+}
+
+panel_hollow {
+	color: #ffffff;
+	border-radius: 2;
+	background: rgba(0, 0, 0, 0);
+	border-width: 1;
+	border-color: #1c1c1c;
+	padding: 4 4 4 4;
+}
+
+debug {
+	border-width: 1;
+	border-color: rgba(0, 255, 0, 1);
+}
+
+debug2 {
+	border-width: 1;
+	border-color: rgba(255, 0, 0, 1);
+}
+
+scroll_track {
+	background: #0f0f0f;
+	border-radius: 2;
+}
+
+scroll_thumb {
+	@scroll_track;
+	background: #363636;
+}
+
+scroll_thumb_hover {
+	@scroll_thumb;
+	background: #474747;
+}
+
+scroll_thumb_active {
+	@scroll_thumb;
+	background: #072854;
+}
+
+textedit {
+	color: #ffffff;
+	font-size: 14;
+	border-radius: 2;
+	padding: 6 6 0 0;
+	background: gradient(
+		0.0, 0.0,
+		0.0, 1.0,
+		#1c1c1c, #363636
+	);
+}
+
+textedit_focus {
+	@textedit;
+	border-width: 1;
+	border-color: #072854;
+}
+
+placeholder {
+	font-size: 14;
+	color: rgba(255, 255, 255, 0.5);
+	text-align: left;
+	vertical-align: middle;
+	padding: 6 6 6 6;
+}
+
+icon_button {
+	@button;
+	color: #ffffff;
+	text-align: center;
+	vertical-align: middle;
+	font-size: 16;
+}
+
+icon_button_hover {
+	@button_hover;
+}
+
+icon_button_active {
+	@button_active;
+}
+
+icon_button_disabled {
+	@button_disabled;
+}
+
+tab {
+	border-radius: 4 4 0 0;
+	text-align: center;
+	vertical-align: middle;
+	font-size: 14;
+	color: #ffffff;
+	border-width: 1;
+	border-color: #1c1c1c;
+	background: gradient(
+		0.0, 0.0,
+		0.0, 1.0,
+		#363636, #1c1c1c
+	);
+}
+
+tab_hover {
+	@tab;
+	background: gradient(
+		0.0, 0.0,
+		0.0, 1.0,
+		#474747, #2e2e2e
+	);
+}
+
+tab_active {
+	@tab;
+	background: gradient(
+		0.0, 0.0,
+		0.0, 1.0,
+		#072854, #104182
+	);
+}
+
+tab_disabled {
+	@tab;
+	background: rgba(50, 50, 50, 0.4);
+}
