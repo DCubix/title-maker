@@ -1,13 +1,16 @@
 #include "Shape.h"
 
 #include "../../QuickGUI/quickgui/Icons.h"
+#include "portable-file-dialogs.h"
+#include <filesystem>
 
 void Rectangle::draw(NVGcontext* ctx) {
-	nvgSave(ctx);
+	Shape::draw(ctx);
 
+	Rect b = rectSpaceBounds();
 	nvgBeginPath(ctx);
-	if (borderRadius > 0.0f) nvgRoundedRect(ctx, bounds.x, bounds.y, bounds.width, bounds.height, borderRadius);
-	else nvgRect(ctx, bounds.x, bounds.y, bounds.width, bounds.height);
+	if (borderRadius > 0.0f) nvgRoundedRect(ctx, b.x, b.y, b.width, b.height, borderRadius);
+	else nvgRect(ctx, b.x, b.y, b.width, b.height);
 	applyFill(ctx);
 	nvgFill(ctx);
 
@@ -16,17 +19,16 @@ void Rectangle::draw(NVGcontext* ctx) {
 		nvgStrokeColor(ctx, nvgColor(borderColor));
 		nvgStroke(ctx);
 	}
-
-	nvgRestore(ctx);
 }
 
 void Ellipse::draw(NVGcontext* ctx) {
-	nvgSave(ctx);
+	Shape::draw(ctx);
 
+	Rect b = rectSpaceBounds();
 	nvgBeginPath(ctx);
 	nvgEllipse(ctx,
-		bounds.x + bounds.width / 2.0f, bounds.y + bounds.height / 2.0f,
-		bounds.width / 2.0f, bounds.height / 2.0f
+		b.x + b.width / 2.0f, b.y + b.height / 2.0f,
+		b.width / 2.0f, b.height / 2.0f
 	);
 	applyFill(ctx);
 	nvgFill(ctx);
@@ -36,8 +38,6 @@ void Ellipse::draw(NVGcontext* ctx) {
 		nvgStrokeColor(ctx, nvgColor(borderColor));
 		nvgStroke(ctx);
 	}
-
-	nvgRestore(ctx);
 }
 
 static RadioButton fillStyleButtons[] = {
@@ -103,10 +103,10 @@ void ColoredShape::applyFill(NVGcontext* ctx) {
 		nvgFillColor(ctx, nvgColor(background.color[0]));
 	}
 	else {
-		float sx = background.stops[0].x * bounds.width + bounds.x;
-		float sy = background.stops[0].y * bounds.height + bounds.y;
-		float ex = background.stops[1].x * bounds.width + bounds.x;
-		float ey = background.stops[1].y * bounds.height + bounds.y;
+		float sx = background.stops[0].x * bounds.width;
+		float sy = background.stops[0].y * bounds.height;
+		float ex = background.stops[1].x * bounds.width;
+		float ey = background.stops[1].y * bounds.height;
 		auto [ colA, colB ] = background.color;
 		auto paint = nvgLinearGradient(
 			ctx,
@@ -116,6 +116,12 @@ void ColoredShape::applyFill(NVGcontext* ctx) {
 		);
 		nvgFillPaint(ctx, paint);
 	}
+}
+
+void Shape::draw(NVGcontext* ctx) {
+	Point position = bounds.location();
+	Transform xformDraw = Transform::translation(position) * Transform::rotation(nvgDegToRad(rotation));
+	xformDraw.toNanoVG(ctx);
 }
 
 void Shape::drawAnimated(NVGcontext* ctx, float deltaTime) {
@@ -161,6 +167,16 @@ void Shape::triggerExit() {
 		m_nextState = Exiting;
 }
 
+Rect Shape::rectSpaceBounds() const {
+	Point hsize = bounds.size() * 0.5f;
+	return Rect(
+		-hsize.x,
+		-hsize.y,
+		bounds.width,
+		bounds.height
+	);
+}
+
 void Shape::triggerAnim() {
 	m_globalTime = 0.0f;
 
@@ -177,12 +193,18 @@ void Shape::triggerAnim() {
 }
 
 void Text::draw(NVGcontext* ctx) {
-	nvgSave(ctx);
+	Shape::draw(ctx);
+
+	if (!m_fontFileName.empty() || nvgFindFont(ctx, font.c_str()) == -1) {
+		m_fontHandle = nvgCreateFont(ctx, font.c_str(), m_fontFileName.c_str());
+		m_fontFileName = "";
+	}
+
+	if (m_fontHandle > 0) nvgFontFaceId(ctx, m_fontHandle);
 	nvgFillColor(ctx, nvgColor(background.color[0]));
 	nvgFontSize(ctx, fontSize);
 	nvgTextAlign(ctx, NVG_ALIGN_LEFT | NVG_ALIGN_TOP);
 	nvgTextBox(ctx, bounds.x, bounds.y, bounds.width, text.c_str(), nullptr);
-	nvgRestore(ctx);
 }
 
 void Text::gui(QuickGUI* gui) {
@@ -197,5 +219,21 @@ void Text::gui(QuickGUI* gui) {
 	gui->textEdit("txt_text", gui->layoutCutTop(26), text, "Say something...");
 	gui->layoutCutTop(5);
 
-	gui->number("txt_font_size", gui->layoutCutTop(26), fontSize, 8.0f, 172.0f, 1.0f, "{:.0f}px", "Font Size:");
+	gui->number("txt_font_size", gui->layoutCutTop(26), fontSize, 8.0f, 256.0f, 1.0f, "{:.0f}px", "Font Size:");
+
+	gui->layoutCutTop(5);
+
+	std::string btnFontText = m_fontHandle <= 0 ? "Select Font" : font;
+	if (gui->button("btn_font_file", btnFontText, gui->layoutCutTop(26), IC_DOCUMENT_TEXT)) {
+		auto fp = pfd::open_file(
+			"Select Font", pfd::path::home(),
+			{ "Fonts (.ttf .otf)", "*.ttf *.otf" },
+			pfd::opt::none
+		);
+
+		if (!fp.result().empty()) {
+			m_fontFileName = fp.result()[0];
+			font = std::filesystem::path(m_fontFileName).stem().generic_string();
+		}
+	}
 }

@@ -25,7 +25,9 @@ void Renderer::render(const ShapeList& shapes, float deltaTime) {
 
 	for (auto&& shape : shapes) {
 		//shape->draw(m_context);
+		nvgSave(m_context);
 		shape->drawAnimated(m_context, deltaTime);
+		nvgRestore(m_context);
 	}
 
 	nvgRestore(m_context);

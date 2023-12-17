@@ -36,6 +36,9 @@
     <ClCompile Include="app\NDIOutput.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="app\portable-file-dialog.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
@@ -102,6 +105,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="app\NDIOutput.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="app\portable-file-dialogs.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

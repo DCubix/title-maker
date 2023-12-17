@@ -4,6 +4,9 @@
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "../stb_image_write.h"
+#include <format>
+
+constexpr float hitTestExpand = 4.0f;
 
 static const int keyTranslationTable[] = {
 	SDLK_a, SDLK_b, SDLK_c, SDLK_d, SDLK_e, SDLK_f,
@@ -84,6 +87,51 @@ void QuickGUI_Impl::setMousePosition(Point pos) {
 	SDL_WarpMouseInWindow(window, pos.x, pos.y);
 }
 
+static void drawCross(NVGcontext* ctx, Point p, Color col) {
+	nvgSave(ctx);
+	nvgBeginPath(ctx);
+	nvgMoveTo(ctx, p.x - 10, p.y);
+	nvgLineTo(ctx, p.x + 10, p.y);
+	nvgMoveTo(ctx, p.x, p.y - 10);
+	nvgLineTo(ctx, p.x, p.y + 10);
+	nvgStrokeColor(ctx, nvgColor(col));
+	nvgStrokeWidth(ctx, 1.0f);
+	nvgStroke(ctx);
+	nvgRestore(ctx);
+}
+
+static void drawVec(NVGcontext* ctx, float x, float y, float vx, float vy, Color col) {
+	float len = ::sqrtf(vx * vx + vy * vy);
+	vx /= len;
+	vy /= len;
+
+	nvgSave(ctx);
+	nvgBeginPath(ctx);
+	nvgCircle(ctx, x, y, 2.2f);
+	nvgMoveTo(ctx, x, y);
+	nvgLineTo(ctx, x + vx * 16.0f, y + vy * 16.0f);
+	nvgStrokeColor(ctx, nvgColor(col));
+	nvgStrokeWidth(ctx, 1.2f);
+	nvgStroke(ctx);
+	nvgRestore(ctx);
+}
+
+static void drawRect(NVGcontext* ctx, Rect b, Color col) {
+	nvgSave(ctx);
+	nvgBeginPath(ctx);
+	nvgRect(ctx, b.x, b.y, b.width, b.height);
+	nvgStrokeColor(ctx, nvgColor(col));
+	nvgStrokeWidth(ctx, 1.0f);
+	nvgStroke(ctx);
+	nvgRestore(ctx);
+}
+
+static Point transformMouse(Point mousePosition, Rect bounds, float rotation) {
+	Point boundsOrigin = bounds.location();
+	Point localMouse = mousePosition - bounds.location() - bounds.size() * 0.5f;
+	return localMouse.rotated(-rotation) + bounds.size() * 0.5f;
+}
+
 bool QuickGUI_Impl::viewport(
 	const std::string& id, Rect bounds, int virtualWidth, int virtualHeight,
 	const ShapeList& shapes,
@@ -97,17 +145,16 @@ bool QuickGUI_Impl::viewport(
 	nvgTranslate(ctx, bounds.x, bounds.y);
 
 	if (*selected) {
-		rectManipulator((*selected)->bounds, p, wid.relativeDelta, bounds, virtualWidth, virtualHeight);
+		rectManipulator(
+			(*selected)->bounds,
+			(*selected)->rotation,
+			p, wid.relativeDelta,
+			bounds,
+			virtualWidth, virtualHeight
+		);
 	}
 
-	nvgBeginPath(ctx);
-	nvgMoveTo(ctx, p.x - 10, p.y);
-	nvgLineTo(ctx, p.x + 10, p.y);
-	nvgMoveTo(ctx, p.x, p.y - 10);
-	nvgLineTo(ctx, p.x, p.y + 10);
-	nvgStrokeColor(ctx, nvgRGB(0, 255, 255));
-	nvgStrokeWidth(ctx, 1.0f);
-	nvgStroke(ctx);
+	drawCross(ctx, p, Color{ 0.0f, 1.0f, 1.0f, 1.0f });
 
 	nvgRestore(ctx);
 
@@ -115,11 +162,22 @@ bool QuickGUI_Impl::viewport(
 		bool clickedShape = false;
 		for (auto&& shape : shapes) {
 			Rect b = shape->bounds;
+			
+			float rotation = nvgDegToRad(shape->rotation);
+
 			Point minGui = viewportToGui({ b.x, b.y }, virtualWidth, virtualHeight, bounds);
 			Point maxGui = viewportToGui({ b.x + b.width, b.y + b.height }, virtualWidth, virtualHeight, bounds);
-			Rect boundsGui = Rect::fromMinMax(minGui, maxGui);
-			boundsGui.expand(10);
-			if (boundsGui.hasPoint(p)) {
+			Rect vpBounds = Rect::fromMinMax(minGui, maxGui);
+			Point vpBoundsOrigin = vpBounds.size() * 0.5f;
+			Point vpBoundsPos = vpBounds.location() + vpBoundsOrigin;
+			Rect vpBoundsLocal = vpBounds - vpBoundsPos;
+
+			Transform xform = (Transform::rotation(rotation) * Transform::translation(vpBoundsPos)).inverted();
+
+			// mouse position
+			Point mousePos = xform * p;
+
+			if (vpBoundsLocal.hasPoint(mousePos)) {
 				*selected = shape.get();
 				clickedShape = true;
 				break;
@@ -135,43 +193,109 @@ bool QuickGUI_Impl::viewport(
 	return false;
 }
 
-static void pointManipulator(NVGcontext* ctx, Point position, float size) {
+static void drawPointManipulator(NVGcontext* ctx, Point position, float size, Color color) {
 	nvgBeginPath(ctx);
 	nvgCircle(ctx, position.x, position.y, size);
 
-	nvgFillColor(ctx, nvgRGB(255, 255, 255));
+	nvgFillColor(ctx, nvgColor(color));
 	nvgFill(ctx);
 
-	nvgStrokeWidth(ctx, 1.0f);
+	nvgStrokeWidth(ctx, 1.2f);
 	nvgStrokeColor(ctx, nvgRGB(0, 0, 0));
 	nvgStroke(ctx);
 }
 
 void QuickGUI_Impl::rectManipulator(
 	Rect& bounds,
+	float& rotDeg,
 	Point mousePosition,
 	Point mouseDelta,
 	Rect viewportBounds,
 	int virtualWidth, int virtualHeight
 ) {
-	const float size = 5.0f;
+	const float size = 10.0f;
 	const float hsize = size / 2.0f;
 
-	Point mouseGui = guiToViewport(mousePosition, virtualWidth, virtualHeight, viewportBounds);
-	Point minGui = viewportToGui({ bounds.x, bounds.y }, virtualWidth, virtualHeight, viewportBounds);
-	Point maxGui = viewportToGui({ bounds.x + bounds.width, bounds.y + bounds.height }, virtualWidth, virtualHeight, viewportBounds);
-
-	Rect boundsGui = Rect::fromMinMax(minGui, maxGui);
-	boundsGui.expand(6);
+	struct {
+		Point loc;
+		ManipulatorState state;
+	} points[8] = {
+		{ { -1, -1 }, ManipulatorState::SizingTL },
+		{ {  0, -1 }, ManipulatorState::SizingT  },
+		{ {  1, -1 }, ManipulatorState::SizingTR },
+		{ { -1,  1 }, ManipulatorState::SizingBL },
+		{ {  0,  1 }, ManipulatorState::SizingB  },
+		{ {  1,  1 }, ManipulatorState::SizingBR },
+		{ { -1,  0 }, ManipulatorState::SizingL  },
+		{ {  1,  0 }, ManipulatorState::SizingR  }
+	};
 
 	auto ctx = context();
+	float rotation = nvgDegToRad(rotDeg);
+
+	Point minGui = viewportToGui({ bounds.x, bounds.y }, virtualWidth, virtualHeight, viewportBounds);
+	Point maxGui = viewportToGui({ bounds.x + bounds.width, bounds.y + bounds.height }, virtualWidth, virtualHeight, viewportBounds);
+	
+	Rect vpBounds = Rect::fromMinMax(minGui, maxGui);
+	Point vpBoundsOrigin = vpBounds.size() * 0.5f;
+	Point vpBoundsPos = vpBounds.location();
+
+	Rect vpBoundsDraw = Rect(
+		-vpBoundsOrigin.x,
+		-vpBoundsOrigin.y,
+		vpBounds.width,
+		vpBounds.height
+	);
+
+	// rectangle space
+	Transform xformDraw = Transform::translation(vpBoundsPos) * Transform::rotation(rotation);
+	Transform xform = (Transform::translation(vpBoundsPos) * Transform::rotation(rotation)).inverted();
+	
+	auto matText = std::format(
+		"Offset: {:.2f},{:.2f} | X: {:.2f},{:.2f} | Y: {:.2f},{:.2f}",
+		xform.m[4], xform.m[5],
+		xform.m[0], xform.m[1],
+		xform.m[2], xform.m[3]
+	);
+	nvgText(ctx, 20.0f, 60.0f, matText.c_str(), nullptr);
+
+	drawVec(ctx, 20.0f, 100.0f, xform.m[0], xform.m[1], Color{ 0.0f, 1.0f, 1.0f, 1.0f });
+	drawVec(ctx, 50.0f, 100.0f, xform.m[2], xform.m[3], Color{ 0.0f, 1.0f, 1.0f, 1.0f });
+
+	// mouse position
+	Point mousePos = xform * mousePosition;
+	drawCross(ctx, mousePos, Color{ 1.0f, 1.0f, 1.0f, 1.0f });
+
+	drawCross(ctx, xform * vpBoundsPos, Color{ 1.0f, 0.0f, 1.0f, 1.0f });
+
+	drawRect(ctx, vpBoundsDraw, vpBoundsDraw.hasPoint(mousePos) ? Color{ 0.0f, 1.0f, 0.0f, 1.0f } : Color{ 1.0f, 1.0f, 0.0f, 1.0f });
+	//Rect vpBoundsLocalHitTest = vpBoundsLocal;
+	//vpBoundsLocalHitTest.expand(hitTestExpand);
+
+	//Point localRotMouse = transformMouse(mousePosition, vpBounds, rotation);
+
+	//drawCross(ctx, localRotMouse, Color{ 1.0f, 1.0f, 0.0f, 1.0f });
+	//drawRect(ctx, vpBoundsLocalHitTest, Color{1.0f, 0.0f, 0.0f, 1.0f});
+
+	//if (vpBoundsLocalHitTest.hasPoint(localRotMouse)) {
+	//	drawRect(ctx, vpBoundsLocalHitTest, Color{ 0.0f, 1.0f, 0.0f, 1.0f });
+	//}
+
+	//Point mouseGui = guiToViewport(localRotMouse, virtualWidth, virtualHeight, viewportBounds);
+
+	//Rect selBounds = vpBounds;
+	//selBounds.expand(hitTestExpand);
 
 	nvgSave(ctx);
 
-	nvgIntersectScissor(ctx, 0, 0, viewportBounds.width, viewportBounds.height);
+	//nvgIntersectScissor(ctx, 0, 0, viewportBounds.width, viewportBounds.height);
+
+	xformDraw.toNanoVG(ctx);
 
 	nvgBeginPath(ctx);
-	nvgRect(ctx, boundsGui.x, boundsGui.y, boundsGui.width, boundsGui.height);
+	nvgRect(ctx, vpBoundsDraw.x, vpBoundsDraw.y, vpBoundsDraw.width, vpBoundsDraw.height);
+	
+	nvgSave(ctx);
 	nvgStrokeWidth(ctx, 2.0f);
 
 	nvgStrokeColor(ctx, nvgRGB(0, 0, 0));
@@ -181,107 +305,122 @@ void QuickGUI_Impl::rectManipulator(
 	nvgStrokeColor(ctx, nvgRGB(255, 255, 255));
 	nvgLineStyle(ctx, NVG_LINE_DASHED);
 	nvgStroke(ctx);
+	
+	nvgBeginPath(ctx);
+	nvgMoveTo(ctx, vpBoundsDraw.x + vpBoundsDraw.width / 2.0f, vpBoundsDraw.y);
+	nvgLineTo(ctx, vpBoundsDraw.x + vpBoundsDraw.width / 2.0f, vpBoundsDraw.y - 32.0f);
 
-	struct {
-		Point loc;
-		ManipulatorState state;
-	} points[8] = {
-		{ { boundsGui.x, boundsGui.y }, ManipulatorState::SizingTL },
-		{ { boundsGui.x + boundsGui.width / 2, boundsGui.y }, ManipulatorState::SizingT },
-		{ { boundsGui.x + boundsGui.width, boundsGui.y }, ManipulatorState::SizingTR },
-		{ { boundsGui.x, boundsGui.y + boundsGui.height }, ManipulatorState::SizingBL },
-		{ { boundsGui.x + boundsGui.width / 2, boundsGui.y + boundsGui.height }, ManipulatorState::SizingB },
-		{ { boundsGui.x + boundsGui.width, boundsGui.y + boundsGui.height }, ManipulatorState::SizingBR },
-		{ { boundsGui.x, boundsGui.y + boundsGui.height / 2 }, ManipulatorState::SizingL },
-		{ { boundsGui.x + boundsGui.width, boundsGui.y + boundsGui.height / 2 }, ManipulatorState::SizingR }
-	};
+	nvgStrokeColor(ctx, nvgRGB(0, 0, 0));
+	nvgLineStyle(ctx, NVG_LINE_SOLID);
+	nvgStroke(ctx);
+
+	nvgStrokeColor(ctx, nvgRGB(255, 255, 255));
+	nvgLineStyle(ctx, NVG_LINE_DASHED);
+	nvgStroke(ctx);
+
+	nvgRestore(ctx);
+
+	Point halfSize = (vpBoundsDraw.size() * 0.5f);
+
+	drawPointManipulator(ctx, Point{ 0.0f, 0.0f }, size / 3.0f, Color{ 0.2f, 0.6f, 1.0f, 1.0f });
+	drawPointManipulator(ctx, Point{ 0.0f, -(halfSize.y + 32.0f) }, size / 2.0f, Color{ 0.2f, 1.0f, 0.3f, 1.0f });
 
 	for (size_t i = 0; i < 8; i++) {
 		auto p = points[i];
-		pointManipulator(ctx, p.loc, size);
+		Point pos = p.loc * halfSize;
+
+		drawPointManipulator(ctx, pos, size / 2.0f, Color{ 1.0f, 1.0f, 1.0f, 1.0f });
 	}
 
 	nvgRestore(ctx);
 
-	Point mouseDeltaVp = mouseGui - m_manipulator.prevPoint;
-	if (m_state.mouseDown) {
-		switch (m_manipulator.state) {
-			case ManipulatorState::None: {
-				for (size_t i = 0; i < 8; i++) {
-					auto p = points[i];
-					Rect b = Rect(p.loc.x - hsize, p.loc.y - hsize, size, size);
-					b.expand(6);
-					if (b.hasPoint(mousePosition)) {
-						m_manipulator.state = p.state;
-						m_manipulator.prevPoint = mouseGui;
-						break;
-					}
-				}
+	//Point mouseDeltaVp = mouseGui - m_manipulator.prevPoint;
+	//if (m_state.mouseDown) {
+	//	switch (m_manipulator.state) {
+	//		case ManipulatorState::None: {
+	//			for (size_t i = 0; i < 8; i++) {
+	//				auto p = points[i];
+	
+	//				Point loc = p.loc * halfSize + halfSize;
+	//				Rect b = Rect(loc.x - hsize, loc.y - hsize, size, size);
+	//				b.expand(6);
 
-				Rect wholeBounds = boundsGui;
-				wholeBounds.expand(-10);
-				if (wholeBounds.hasPoint(mousePosition)) {
-					m_manipulator.state = ManipulatorState::Moving;
-					m_manipulator.prevPoint = mouseGui;
-				}
-			} break;
-			case ManipulatorState::SizingTL:
-				bounds.x += mouseDeltaVp.x;
-				bounds.y += mouseDeltaVp.y;
-				bounds.width -= mouseDeltaVp.x;
-				bounds.height -= mouseDeltaVp.y;
-				if (bounds.width < 0) {
-					bounds.width = 1;
-				}
-				break;
-			case ManipulatorState::SizingTR:
-				bounds.y += mouseDeltaVp.y;
-				bounds.width += mouseDeltaVp.x;
-				bounds.height -= mouseDeltaVp.y;
-				if (bounds.width < 0) {
-					bounds.width = 1;
-				}
-				break;
-			case ManipulatorState::SizingT:
-				bounds.y += mouseDeltaVp.y;
-				bounds.height -= mouseDeltaVp.y;
-				break;
-			case ManipulatorState::SizingBL:
-				bounds.x += mouseDeltaVp.x;
-				bounds.width -= mouseDeltaVp.x;
-				bounds.height += mouseDeltaVp.y;
-				if (bounds.width < 0) {
-					bounds.width = 1;
-				}
-				break;
-			case ManipulatorState::SizingBR:
-				bounds.width += mouseDeltaVp.x;
-				bounds.height += mouseDeltaVp.y;
-				if (bounds.width < 0) {
-					bounds.width = 1;
-				}
-				break;
-			case ManipulatorState::SizingB:
-				bounds.height += mouseDeltaVp.y;
-				break;
-			case ManipulatorState::SizingL:
-				bounds.x += mouseDeltaVp.x;
-				bounds.width -= mouseDeltaVp.x;
-				break;
-			case ManipulatorState::SizingR:
-				bounds.width += mouseDeltaVp.x;
-				break;
-			case ManipulatorState::Moving:
-				bounds.x += mouseDeltaVp.x;
-				bounds.y += mouseDeltaVp.y;
-				break;
-			default: break;
-		}
+	//				if (b.hasPoint(localRotMouse)) {
+	//					m_manipulator.state = p.state;
+	//					m_manipulator.prevPoint = mouseGui;
+	//					break;
+	//				}
+	//			}
+
+	//			Rect wholeBounds = vpBounds;
+	//			wholeBounds.expand(hitTestExpand * 2.0f);
+	//			if (wholeBounds.hasPoint(localRotMouse)) {
+	//				m_manipulator.state = ManipulatorState::Moving;
+	//				m_manipulator.prevPoint = mouseGui;
+	//			}
+	//		} break;
+	//		case ManipulatorState::SizingTL:
+	//			bounds.x += mouseDeltaVp.x;
+	//			bounds.y += mouseDeltaVp.y;
+	//			bounds.width -= mouseDeltaVp.x;
+	//			bounds.height -= mouseDeltaVp.y;
+	//			if (bounds.width < 0) {
+	//				bounds.width = 1;
+	//			}
+	//			break;
+	//		case ManipulatorState::SizingTR:
+	//			bounds.y += mouseDeltaVp.y;
+	//			bounds.width += mouseDeltaVp.x;
+	//			bounds.height -= mouseDeltaVp.y;
+	//			if (bounds.width < 0) {
+	//				bounds.width = 1;
+	//			}
+	//			break;
+	//		case ManipulatorState::SizingT:
+	//			bounds.y += mouseDeltaVp.y;
+	//			bounds.height -= mouseDeltaVp.y;
+	//			break;
+	//		case ManipulatorState::SizingBL:
+	//			bounds.x += mouseDeltaVp.x;
+	//			bounds.width -= mouseDeltaVp.x;
+	//			bounds.height += mouseDeltaVp.y;
+	//			if (bounds.width < 0) {
+	//				bounds.width = 1;
+	//			}
+	//			break;
+	//		case ManipulatorState::SizingBR:
+	//			bounds.width += mouseDeltaVp.x;
+	//			bounds.height += mouseDeltaVp.y;
+	//			if (bounds.width < 0) {
+	//				bounds.width = 1;
+	//			}
+	//			break;
+	//		case ManipulatorState::SizingB:
+	//			bounds.height += mouseDeltaVp.y;
+	//			break;
+	//		case ManipulatorState::SizingL:
+	//			vpBounds.x += mouseDeltaVp.x;
+	//			vpBounds.width -= mouseDeltaVp.x;
+
+	//			break;
+	//		case ManipulatorState::SizingR:
+	//			bounds.width += mouseDeltaVp.x;
+	//			break;
+	//		case ManipulatorState::Moving:
+	//			bounds.x += mouseDeltaVp.x;
+	//			bounds.y += mouseDeltaVp.y;
+	//			break;
+	//		default: break;
+	//	}
+	//}
+	//else {
+	//	m_manipulator.state = ManipulatorState::None;
+	//}
+	//m_manipulator.prevPoint = mouseGui;
+
+	if (m_state.keyDown && m_state.key == Key::A) {
+		rotDeg += 1.0f;
 	}
-	else {
-		m_manipulator.state = ManipulatorState::None;
-	}
-	m_manipulator.prevPoint = mouseGui;
 }
 
 Point QuickGUI_Impl::viewportToGui(Point p, int virtualWidth, int virtualHeight, std::optional<Rect> screen) {
@@ -382,7 +521,7 @@ void App::drawSideToolbar() {
 
 	if (m_gui->iconButton("rect", IC_RECTANGLE, m_gui->layoutCutTop(32))) {
 		auto rect = std::make_unique<Rectangle>();
-		rect->bounds = Rect(0, 0, 100, 100);
+		rect->bounds = Rect(100, 100, 200, 200);
 		rect->background.color[0] = Color{ 1.0f, 0.0f, 0.0f, 1.0f };
 		m_shapes.push_back(std::move(rect));
 	}
@@ -390,7 +529,7 @@ void App::drawSideToolbar() {
 
 	if (m_gui->iconButton("ellipse", IC_RECORD, m_gui->layoutCutTop(32))) {
 		auto ellip = std::make_unique<Ellipse>();
-		ellip->bounds = Rect(0, 0, 100, 100);
+		ellip->bounds = Rect(0, 0, 200, 200);
 		ellip->background.color[0] = Color{1.0f, 0.0f, 0.0f, 1.0f};
 		m_shapes.push_back(std::move(ellip));
 	}
@@ -465,15 +604,20 @@ void App::drawOptionsPanel() {
 	if (m_selectedShape) {
 		m_gui->text("Position", m_gui->layoutCutTop(19));
 		{
-			auto cols = m_gui->layoutSliceHorizontal(32, 2);
+			auto cols = m_gui->layoutSliceHorizontal(26, 2);
 			m_gui->number("pos_x", cols[0], m_selectedShape->bounds.x, -9999.0f, 9999.0f, 1.0f, "{:.1f}", "X");
 			m_gui->number("pos_y", cols[1], m_selectedShape->bounds.y, -9999.0f, 9999.0f, 1.0f, "{:.1f}", "Y");
 		}
 		m_gui->layoutCutTop(8);
 
+		{
+			m_gui->number("rot", m_gui->layoutCutTop(26), m_selectedShape->rotation, 0.0f, 359.9f, 1.0f, "{:.1f}deg", "Rotation");
+		}
+		m_gui->layoutCutTop(8);
+
 		m_gui->text("Size", m_gui->layoutCutTop(19));
 		{
-			auto cols = m_gui->layoutSliceHorizontal(32, 2);
+			auto cols = m_gui->layoutSliceHorizontal(26, 2);
 			m_gui->number("siz_x", cols[0], m_selectedShape->bounds.width, 0.0f, 9999.0f, 1.0f, "{:.1f}", "W");
 			m_gui->number("siz_y", cols[1], m_selectedShape->bounds.height, 0.0f, 9999.0f, 1.0f, "{:.1f}", "H");
 		}

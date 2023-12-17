@@ -146,6 +146,7 @@
     <ClCompile Include="app\Animation.cpp" />
     <ClCompile Include="app\App.cpp" />
     <ClCompile Include="app\NDIOutput.cpp" />
+    <ClCompile Include="app\portable-file-dialog.cpp" />
     <ClCompile Include="app\Renderer.cpp" />
     <ClCompile Include="app\RenderTarget.cpp" />
     <ClCompile Include="app\Shape.cpp" />
@@ -177,6 +178,7 @@
     <ClInclude Include="app\Animation.h" />
     <ClInclude Include="app\App.h" />
     <ClInclude Include="app\NDIOutput.h" />
+    <ClInclude Include="app\portable-file-dialogs.h" />
     <ClInclude Include="app\Renderer.h" />
     <ClInclude Include="app\RenderTarget.h" />
     <ClInclude Include="app\Shape.h" />

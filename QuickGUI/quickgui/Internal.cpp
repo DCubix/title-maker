@@ -35,3 +35,5 @@ void nvgApplyStrokePaint(NVGcontext* ctx, Paint paint) {
 		default: auto col = std::get<Color>(paint); nvgStrokeColor(ctx, nvgColor(col)); break;
 	}
 }
+
+

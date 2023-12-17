@@ -47,6 +47,7 @@ public:
 
 	void rectManipulator(
 		Rect& bounds,
+		float& rotation,
 		Point mousePosition,
 		Point mouseDelta,
 		Rect viewportBounds,

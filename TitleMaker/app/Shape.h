@@ -18,7 +18,7 @@ enum class ShapeAnimation : size_t {
 
 class Shape {
 public:
-	virtual void draw(NVGcontext* ctx) = 0;
+	virtual void draw(NVGcontext* ctx);
 	virtual void gui(QuickGUI* gui) {}
 
 	void drawAnimated(NVGcontext* ctx, float deltaTime);
@@ -26,8 +26,11 @@ public:
 	void triggerExit();
 
 	Rect bounds{};
+	float rotation{ 0.0f };
 
 	std::unique_ptr<Animation> animations[size_t(ShapeAnimation::Count)];
+
+	Rect rectSpaceBounds() const;
 
 private:
 	enum _State {
@@ -81,7 +84,11 @@ public:
 	void draw(NVGcontext* ctx);
 	void gui(QuickGUI* gui);
 
-	float fontSize{ 30.0f };
+	float fontSize{ 44.0f };
 	std::string text{ "Text" };
-	// TODO: Font loading... yikes!
+	std::string font{ "" };
+
+private:
+	std::string m_fontFileName;
+	int m_fontHandle{ -1 };
 };
